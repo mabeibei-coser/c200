@@ -1,7 +1,7 @@
 {
   "name": "video-remake",
   "private": true,
-  "version": "0.2.2",
+  "version": "0.2.3",
   "type": "module",
   "description": "C200 爆款视频复刻 - 参考视频换产品复刻：解析视频 → 生成产品参考图 → 分镜脚本（保一致）",
   "scripts": {
