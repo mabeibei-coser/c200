@@ -48,11 +48,41 @@ const els = {
   step2StatusText: document.querySelector("#step2-status-text"),
   step2Error: document.querySelector("#step2-error"),
   step2Grid: document.querySelector("#step2-grid"),
+  toStep2: document.querySelector("#to-step2"),
+  toStep3: document.querySelector("#to-step3"),
 };
 
 let mode = "url";
 let status = "idle";
 let lastResult = null; // 上一步解析结果，Step2 复刻时回传给后端
+
+// ===== 步骤向导（1 视频拆解 → 2 复刻洗稿 → 3 分段生成视频 → 4 视频合成）=====
+let currentStep = 1;
+let maxUnlocked = 1; // 已解锁到第几步
+const stepTabs = [...document.querySelectorAll(".step-tab")];
+const stepPanels = [...document.querySelectorAll(".step-panel")];
+
+function refreshStepper() {
+  for (const tab of stepTabs) {
+    const s = Number(tab.dataset.step);
+    tab.classList.toggle("active", s === currentStep);
+    tab.classList.toggle("done", s < currentStep);
+    tab.disabled = s > maxUnlocked;
+  }
+}
+
+function showStep(n) {
+  if (n > maxUnlocked) return;
+  currentStep = n;
+  for (const panel of stepPanels) panel.classList.toggle("hidden", Number(panel.dataset.panel) !== n);
+  refreshStepper();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function unlockStep(n) {
+  if (n > maxUnlocked) maxUnlocked = n;
+  refreshStepper();
+}
 
 // 与 lib/videoImport.js 的 extractFirstHttpUrl 逐字保持一致，改一处必须同步改另一处。
 function extractFirstHttpUrl(input) {
@@ -319,6 +349,8 @@ async function submit(event) {
 
     renderResult(json);
     setStatus("done", "解析完成");
+    unlockStep(2);
+    els.toStep2.disabled = false;
   } catch (err) {
     setError(friendlyError(err instanceof Error ? err.message : String(err)));
     setStatus("error", "解析失败");
@@ -443,6 +475,8 @@ async function submitStep2(event) {
     renderStep2(json);
     const okCount = (json.shots || []).filter((s) => s.imageOk).length;
     setStep2Status("done", `复刻完成：${okCount} 镜出图`);
+    unlockStep(3);
+    els.toStep3.disabled = false;
   } catch (err) {
     setStep2Error(err instanceof Error ? err.message : String(err));
     setStep2Status("error", "复刻失败");
@@ -463,5 +497,15 @@ els.cookiesInput.addEventListener("change", () => {
 els.form.addEventListener("submit", submit);
 els.refInput.addEventListener("change", updateRefPreview);
 els.step2Form.addEventListener("submit", submitStep2);
+
+// 步骤导航：点顶部步骤条 / 上一步 / 下一步
+for (const tab of stepTabs) tab.addEventListener("click", () => showStep(Number(tab.dataset.step)));
+for (const b of document.querySelectorAll(".step-back .ghost-btn")) {
+  b.addEventListener("click", () => showStep(Number(b.dataset.step)));
+}
+els.toStep2.addEventListener("click", () => showStep(2));
+els.toStep3.addEventListener("click", () => showStep(3));
+
 setMode("url");
 setStatus("idle", "等待视频输入");
+refreshStepper();
