@@ -1,7 +1,7 @@
 {
   "name": "video-remake",
   "private": true,
-  "version": "0.2.0",
+  "version": "0.2.1",
   "type": "module",
   "description": "C200 爆款视频复刻 - 参考视频换产品复刻：解析视频 → 生成产品参考图 → 分镜脚本（保一致）",
   "scripts": {
@@ -25,6 +25,7 @@
     "lucide-react": "^1.21.0",
     "multer": "^2.2.0",
     "openai": "^6.39.0",
+    "playwright": "^1.61.1",
     "playwright-core": "^1.61.1",
     "react": "^19.2.7",
     "react-dom": "^19.2.7"
