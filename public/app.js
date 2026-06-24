@@ -50,11 +50,24 @@ const els = {
   step2Grid: document.querySelector("#step2-grid"),
   toStep2: document.querySelector("#to-step2"),
   toStep3: document.querySelector("#to-step3"),
+  toStep4: document.querySelector("#to-step4"),
+  step3Grid: document.querySelector("#step3-grid"),
+  step3Empty: document.querySelector("#step3-empty"),
+  step4Submit: document.querySelector("#step4-submit"),
+  step4Label: document.querySelector("#step4-label"),
+  step4Status: document.querySelector("#step4-status"),
+  step4StatusText: document.querySelector("#step4-status-text"),
+  step4Error: document.querySelector("#step4-error"),
+  step4Result: document.querySelector("#step4-result"),
+  finalVideo: document.querySelector("#final-video"),
+  finalDownload: document.querySelector("#final-download"),
 };
 
 let mode = "url";
 let status = "idle";
-let lastResult = null; // 上一步解析结果，Step2 复刻时回传给后端
+let lastResult = null; // 第1步解析结果，Step2 复刻时回传给后端
+let lastStep2 = null; // 第2步复刻结果，Step3 生成视频时用
+const step3Clips = {}; // 镜号 -> clipRel（已生成的视频片段）
 
 // ===== 步骤向导（1 视频拆解 → 2 复刻洗稿 → 3 分段生成视频 → 4 视频合成）=====
 let currentStep = 1;
@@ -76,6 +89,8 @@ function showStep(n) {
   currentStep = n;
   for (const panel of stepPanels) panel.classList.toggle("hidden", Number(panel.dataset.panel) !== n);
   refreshStepper();
+  if (n === 3) renderStep3();
+  if (n === 4) els.step4Submit.disabled = Object.keys(step3Clips).length === 0;
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
@@ -472,6 +487,7 @@ async function submitStep2(event) {
     const response = await fetch("api/step2", { method: "POST", body });
     const json = await readJson(response);
     if (!json.ok) throw new Error(json.error || (json.stage === "rewrite" ? "洗稿失败" : "复刻失败"));
+    lastStep2 = json;
     renderStep2(json);
     const okCount = (json.shots || []).filter((s) => s.imageOk).length;
     setStep2Status("done", `复刻完成：${okCount} 镜出图`);
@@ -480,6 +496,144 @@ async function submitStep2(event) {
   } catch (err) {
     setStep2Error(err instanceof Error ? err.message : String(err));
     setStep2Status("error", "复刻失败");
+  }
+}
+
+// ===== Step3 分段生成视频 =====
+function renderStep3() {
+  const shots = lastStep2 && lastStep2.shots ? lastStep2.shots.filter((s) => s.imageOk && s.newImageRel) : [];
+  els.step3Grid.replaceChildren();
+  if (!shots.length) {
+    els.step3Empty.classList.remove("hidden");
+    return;
+  }
+  els.step3Empty.classList.add("hidden");
+  for (const shot of shots) {
+    const card = document.createElement("div");
+    card.className = "step3-card";
+
+    const img = document.createElement("img");
+    img.className = "step3-shot-img";
+    img.src = rel(shot.newImageRel);
+    img.alt = `镜${shot.idx} 复刻图`;
+
+    const body = document.createElement("div");
+    body.className = "step3-body";
+
+    const title = document.createElement("div");
+    title.className = "step3-title";
+    title.textContent = `镜${shot.idx}` + (shot.newSummary ? ` · ${shot.newSummary}` : "");
+
+    const prompt = document.createElement("textarea");
+    prompt.className = "step3-prompt";
+    prompt.rows = 2;
+    prompt.value = (shot.newSummary ? shot.newSummary + "，" : "") + "镜头缓慢推近，画面自然流畅、稳定";
+
+    const row = document.createElement("div");
+    row.className = "step3-row";
+    const btn = document.createElement("button");
+    btn.className = "primary-action small";
+    btn.type = "button";
+    const cardStatus = document.createElement("span");
+    cardStatus.className = "step3-card-status";
+    row.append(btn, cardStatus);
+
+    const video = document.createElement("video");
+    video.className = "step3-video hidden";
+    video.controls = true;
+    video.playsInline = true;
+
+    if (step3Clips[shot.idx]) {
+      video.src = rel(step3Clips[shot.idx]);
+      video.classList.remove("hidden");
+      btn.textContent = "重新生成";
+    } else {
+      btn.textContent = "生成视频";
+    }
+
+    btn.addEventListener("click", () => generateClip3(shot, { btn, cardStatus, video, prompt }));
+
+    body.append(title, prompt, row, video);
+    card.append(img, body);
+    els.step3Grid.append(card);
+  }
+  els.toStep4.disabled = Object.keys(step3Clips).length === 0;
+}
+
+async function generateClip3(shot, ui) {
+  ui.btn.disabled = true;
+  ui.cardStatus.textContent = "生成中（约 1-3 分钟）…";
+  ui.cardStatus.className = "step3-card-status running";
+  try {
+    const resp = await fetch("api/step3", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ imageRel: shot.newImageRel, prompt: ui.prompt.value, idx: shot.idx }),
+    });
+    const json = await readJson(resp);
+    if (!json.ok) throw new Error(json.error || "生成失败");
+    step3Clips[shot.idx] = json.clipRel;
+    ui.video.src = rel(json.clipRel);
+    ui.video.classList.remove("hidden");
+    ui.cardStatus.textContent = `已生成 ${json.resolution || ""}/${json.duration || ""}s`;
+    ui.cardStatus.className = "step3-card-status done";
+    ui.btn.textContent = "重新生成";
+    unlockStep(4);
+    els.toStep4.disabled = false;
+  } catch (err) {
+    ui.cardStatus.textContent = "❌ " + (err instanceof Error ? err.message : String(err));
+    ui.cardStatus.className = "step3-card-status error";
+  } finally {
+    ui.btn.disabled = false;
+  }
+}
+
+// ===== Step4 视频合成 =====
+function setStep4Error(message) {
+  if (!message) {
+    els.step4Error.classList.add("hidden");
+    setText(els.step4Error, "");
+    return;
+  }
+  setText(els.step4Error, message);
+  els.step4Error.classList.remove("hidden");
+}
+
+function setStep4Status(next, message) {
+  els.step4Status.className = `status-line ${next}`;
+  els.step4Status.classList.remove("hidden");
+  setText(els.step4StatusText, message);
+  setText(els.step4Label, next === "running" ? "合成中…" : "合成成片");
+  els.step4Submit.disabled = next === "running" || Object.keys(step3Clips).length === 0;
+}
+
+async function composeStep4() {
+  const ordered = Object.keys(step3Clips)
+    .map(Number)
+    .sort((a, b) => a - b)
+    .map((i) => step3Clips[i]);
+  if (!ordered.length) {
+    setStep4Error("还没有生成任何视频片段，请回第 3 步生成");
+    return;
+  }
+  setStep4Error("");
+  setStep4Status("running", `正在拼接 ${ordered.length} 段…`);
+  els.step4Result.classList.add("hidden");
+  try {
+    const resp = await fetch("api/step4", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ clips: ordered }),
+    });
+    const json = await readJson(resp);
+    if (!json.ok) throw new Error(json.error || "合成失败");
+    els.finalVideo.src = rel(json.finalRel);
+    els.finalDownload.href = rel(json.finalRel);
+    els.step4Result.classList.remove("hidden");
+    setStep4Status("done", "合成完成");
+  } catch (err) {
+    setStep4Error(err instanceof Error ? err.message : String(err));
+    setStep4Status("error", "合成失败");
   }
 }
 
@@ -505,6 +659,8 @@ for (const b of document.querySelectorAll(".step-back .ghost-btn")) {
 }
 els.toStep2.addEventListener("click", () => showStep(2));
 els.toStep3.addEventListener("click", () => showStep(3));
+els.toStep4.addEventListener("click", () => showStep(4));
+els.step4Submit.addEventListener("click", composeStep4);
 
 setMode("url");
 setStatus("idle", "等待视频输入");

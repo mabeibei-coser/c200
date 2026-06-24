@@ -9,6 +9,8 @@ import { describeShots } from "./lib/vlm.js";
 import { transcribeVideo, alignToShots } from "./lib/asr.js";
 import { composeShotScript, composeStoryboard } from "./lib/storyboard.js";
 import { runStep2 } from "./lib/step2.js";
+import { generateClip } from "./lib/seedance.js";
+import { composeClips } from "./lib/compose.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.join(__dirname, ".env.local") }); // vlm 要火山 key
@@ -18,6 +20,8 @@ const COOKIES_DIR = path.join(DATA_DIR, "cookies");
 const FRAMES_DIR = path.join(DATA_DIR, "frames");
 const IMAGES_DIR = path.join(DATA_DIR, "images");
 const REFS_DIR = path.join(DATA_DIR, "refs");
+const CLIPS_DIR = path.join(DATA_DIR, "clips");
+const FINALS_DIR = path.join(DATA_DIR, "finals");
 const PUBLIC_DIR = path.join(__dirname, "public");
 const DIST_DIR = path.join(__dirname, "dist");
 const PORT = Number(process.env.PORT || 3001);
@@ -29,6 +33,8 @@ fs.mkdirSync(COOKIES_DIR, { recursive: true });
 fs.mkdirSync(FRAMES_DIR, { recursive: true });
 fs.mkdirSync(IMAGES_DIR, { recursive: true });
 fs.mkdirSync(REFS_DIR, { recursive: true });
+fs.mkdirSync(CLIPS_DIR, { recursive: true });
+fs.mkdirSync(FINALS_DIR, { recursive: true });
 
 function safeName(name) {
   return String(name || "video")
@@ -165,6 +171,8 @@ app.use((req, res, next) => {
 app.use(express.json({ limit: "1mb" }));
 app.use("/frames", express.static(FRAMES_DIR));
 app.use("/images", express.static(IMAGES_DIR));
+app.use("/clips", express.static(CLIPS_DIR));
+app.use("/finals", express.static(FINALS_DIR));
 app.use(express.static(PUBLIC_DIR));
 
 app.get("/api/health", (_req, res) => {
@@ -265,6 +273,53 @@ app.post("/api/step2", refUpload.array("refs", 3), async (req, res, next) => {
     next(err);
   } finally {
     for (const p of refs) removeFileQuietly(p); // 产品图是临时输入，生图后即删
+  }
+});
+
+// 把客户端传来的相对路径(/images/.. /clips/..)安全解析到本机绝对路径，挡目录穿越
+function resolveRel(rel, prefix, baseDir) {
+  const clean = String(rel || "").replace(new RegExp(`^/?${prefix}/`), "");
+  const abs = path.resolve(baseDir, clean);
+  const base = path.resolve(baseDir);
+  if (abs !== base && !abs.startsWith(base + path.sep)) return null;
+  return fs.existsSync(abs) ? abs : null;
+}
+
+// Step3 单镜图生视频（火山 Seedance，按次计费——前端逐镜手动点，不批量）
+app.post("/api/step3", async (req, res, next) => {
+  try {
+    const imgAbs = resolveRel(req.body?.imageRel, "images", IMAGES_DIR);
+    if (!imgAbs) {
+      res.status(400).json({ error: "产品图不存在或路径非法（请先在第 2 步复刻出图）" });
+      return;
+    }
+    const r = await generateClip({
+      imagePath: imgAbs,
+      prompt: req.body?.prompt || "",
+      ratio: req.body?.ratio || "9:16",
+      duration: Number(req.body?.duration) || 5,
+      resolution: req.body?.resolution || "720p",
+      idx: req.body?.idx,
+    });
+    res.json(r);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Step4 合成成片（ffmpeg 拼接，不计费）
+app.post("/api/step4", async (req, res, next) => {
+  try {
+    const rels = Array.isArray(req.body?.clips) ? req.body.clips : [];
+    const paths = rels.map((r) => resolveRel(r, "clips", CLIPS_DIR)).filter(Boolean);
+    if (!paths.length) {
+      res.status(400).json({ error: "没有可合成的视频片段（请先在第 3 步生成）" });
+      return;
+    }
+    const r = await composeClips(paths, { name: `final-${Date.now()}.mp4` });
+    res.json(r);
+  } catch (err) {
+    next(err);
   }
 });
 

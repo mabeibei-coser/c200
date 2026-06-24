@@ -260,29 +260,38 @@
       <!-- ============ Step 3 分段生成视频 ============ -->
       <section class="step-panel hidden" data-panel="3">
         <div class="step-back"><button class="ghost-btn" data-step="2" type="button">← 上一步</button></div>
-        <div class="coming-soon">
-          <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.6">
-            <rect width="18" height="14" x="3" y="5" rx="2"></rect>
-            <path d="m10 9 4 3-4 3V9z"></path>
-          </svg>
-          <h2>分段生成视频</h2>
-          <p>把每个分镜的新图生成短视频片段，可逐段提修改意见、重新生成，直到满意。</p>
-          <span class="soon-badge">即将上线 · 需接入按次付费的图生视频</span>
+        <div class="panel-title"><span class="panel-step">第 3 步</span><h2>分段生成视频</h2></div>
+        <p class="step2-sub">给每个分镜的复刻图生成一段短视频，可改提示词重新生成。每段约 1-3 分钟、<strong>按次计费</strong>，请逐个点。</p>
+
+        <div id="step3-empty" class="coming-soon" style="min-height: 200px">
+          <p>请先在第 2 步复刻出图，这里会按分镜列出可生成的画面。</p>
+        </div>
+        <div id="step3-grid" class="step3-grid"></div>
+
+        <div class="step-nav">
+          <button id="to-step4" class="primary-action wide" type="button" disabled>下一步：视频合成 →</button>
         </div>
       </section>
 
       <!-- ============ Step 4 视频合成 ============ -->
       <section class="step-panel hidden" data-panel="4">
         <div class="step-back"><button class="ghost-btn" data-step="3" type="button">← 上一步</button></div>
-        <div class="coming-soon">
-          <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.6">
-            <path d="M4 7h16"></path><path d="M4 12h16"></path><path d="M4 17h16"></path>
-            <rect width="4" height="4" x="6" y="5" rx="1"></rect>
-          </svg>
-          <h2>视频合成</h2>
-          <p>把生成好的分段视频按顺序拼接成完整成片，导出下载。</p>
-          <span class="soon-badge">即将上线</span>
+        <div class="panel-title"><span class="panel-step">第 4 步</span><h2>视频合成</h2></div>
+        <p class="step2-sub">把已生成的视频片段按分镜顺序拼成完整成片，免费。</p>
+
+        <button id="step4-submit" class="primary-action" type="button" disabled>
+          <span id="step4-label">合成成片</span>
+        </button>
+        <div id="step4-status" class="status-line idle hidden">
+          <span class="status-dot"></span>
+          <span id="step4-status-text">等待</span>
         </div>
+        <div id="step4-error" class="error-box hidden"></div>
+
+        <figure id="step4-result" class="final-result hidden">
+          <video id="final-video" controls playsinline></video>
+          <figcaption><a id="final-download" class="ghost-btn" download>⤓ 下载成片</a></figcaption>
+        </figure>
       </section>
     </main>
 

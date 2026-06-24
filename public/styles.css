@@ -822,6 +822,116 @@ tbody tr:last-child td {
   font-weight: 700;
 }
 
+/* ===== Step3 分段生成视频 ===== */
+.step3-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.step3-card {
+  display: grid;
+  grid-template-columns: 110px minmax(0, 1fr);
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+}
+
+.step3-shot-img {
+  width: 110px;
+  aspect-ratio: 9 / 16;
+  object-fit: cover;
+  border-radius: 8px;
+  background: #eef1ec;
+}
+
+.step3-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.step3-title {
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 680;
+  line-height: 1.4;
+}
+
+.step3-prompt {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfcfa;
+  font-size: 12.5px;
+  line-height: 1.45;
+  resize: vertical;
+  outline: none;
+}
+
+.step3-prompt:focus {
+  border-color: rgba(27, 127, 98, 0.7);
+}
+
+.step3-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.primary-action.small {
+  min-height: 34px;
+  width: auto;
+  padding: 0 14px;
+  font-size: 13px;
+}
+
+.step3-card-status {
+  overflow-wrap: anywhere;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.step3-card-status.running {
+  color: #b07d12;
+}
+
+.step3-card-status.done {
+  color: var(--accent-dark);
+}
+
+.step3-card-status.error {
+  color: var(--warn);
+}
+
+.step3-video {
+  width: 100%;
+  max-height: 340px;
+  border-radius: 8px;
+  background: #000;
+}
+
+/* ===== Step4 成片 ===== */
+.final-result {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: flex-start;
+  margin: 16px 0 0;
+}
+
+.final-result video {
+  width: 100%;
+  max-width: 360px;
+  border-radius: 10px;
+  background: #000;
+}
+
 @media (max-width: 720px) {
   .topbar {
     padding: 10px 14px;
