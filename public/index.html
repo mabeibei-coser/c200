@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>C200 视频复刻精解析</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <aside class="control-panel">
+        <div class="brand-row">
+          <div class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="6" cy="6" r="3"></circle>
+              <circle cx="6" cy="18" r="3"></circle>
+              <path d="M8.6 8.6 19 19"></path>
+              <path d="M8.6 15.4 19 5"></path>
+            </svg>
+          </div>
+          <div>
+            <h1>C200 视频复刻精解析</h1>
+            <p>镜头切点 · 关键帧 · 时间轴</p>
+          </div>
+        </div>
+
+        <form id="parse-form" class="parse-form">
+          <div class="mode-switch">
+            <button id="mode-url" class="mode-button active" type="button">
+              <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M10 13a5 5 0 0 0 7.1 0l2-2a5 5 0 0 0-7.1-7.1l-1.1 1.1"></path>
+                <path d="M14 11a5 5 0 0 0-7.1 0l-2 2A5 5 0 0 0 12 20.1l1.1-1.1"></path>
+              </svg>
+              <span>链接</span>
+            </button>
+            <button id="mode-upload" class="mode-button" type="button">
+              <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <path d="m17 8-5-5-5 5"></path>
+                <path d="M12 3v12"></path>
+              </svg>
+              <span>上传</span>
+            </button>
+          </div>
+
+          <label id="url-field" class="field">
+            <span>参考视频链接</span>
+            <textarea id="url-input" placeholder="https://..." rows="5"></textarea>
+            <small id="url-hint" class="field-hint">可直接粘贴抖音分享文案，系统会自动提取第一个链接。</small>
+          </label>
+
+          <label id="cookies-field" class="cookie-zone">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 2a10 10 0 1 0 10 10 4 4 0 0 1-4-4 4 4 0 0 1-4-4 4 4 0 0 1-2-2"></path>
+              <path d="M8.5 8.5h.01"></path>
+              <path d="M16 15.5h.01"></path>
+              <path d="M12 12h.01"></path>
+              <path d="M11 17h.01"></path>
+            </svg>
+            <span id="cookies-name">cookies.txt（可选，给小红书等需登录平台用；抖音已免）</span>
+            <input id="cookies-input" accept=".txt,text/plain" type="file" />
+          </label>
+
+          <label id="upload-field" class="upload-zone hidden">
+            <svg viewBox="0 0 24 24" width="25" height="25" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="m22 8-6 4 6 4V8Z"></path>
+              <rect width="14" height="12" x="2" y="6" rx="2" ry="2"></rect>
+            </svg>
+            <span id="file-name">选择视频文件</span>
+            <input id="file-input" accept="video/*,.mkv,.mov,.m4v" type="file" />
+          </label>
+
+          <label class="field">
+            <span>分镜数量（留空 = 按画面变化自动切）</span>
+            <input id="shots-input" max="50" min="1" step="1" type="number" placeholder="自动" />
+          </label>
+
+          <div class="param-grid">
+            <label class="field">
+              <span>切镜阈值</span>
+              <input id="threshold-input" max="0.95" min="0.01" step="0.01" type="number" value="0.3" />
+            </label>
+            <label class="field">
+              <span>最短镜头</span>
+              <input id="min-shot-input" max="10" min="0.1" step="0.1" type="number" value="0.5" />
+            </label>
+          </div>
+
+          <div class="enrich-options">
+            <label class="check"><input id="describe-input" type="checkbox" /><span>画面描述（豆包 vision，较慢）</span></label>
+            <label class="check"><input id="transcribe-input" type="checkbox" /><span>台词听写（本地 whisper）</span></label>
+          </div>
+
+          <button id="submit-button" class="primary-action" disabled type="submit">
+            <svg id="submit-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="6" cy="6" r="3"></circle>
+              <circle cx="6" cy="18" r="3"></circle>
+              <path d="M8.6 8.6 19 19"></path>
+              <path d="M8.6 15.4 19 5"></path>
+            </svg>
+            <span id="submit-label">开始精解析</span>
+          </button>
+        </form>
+
+        <div id="status-line" class="status-line idle">
+          <span id="status-dot" class="status-dot"></span>
+          <span id="status-text">等待视频输入</span>
+        </div>
+        <div id="error-box" class="error-box hidden"></div>
+      </aside>
+
+      <section class="workspace">
+        <div id="empty-state" class="empty-state">
+          <svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="6" cy="6" r="3"></circle>
+            <circle cx="6" cy="18" r="3"></circle>
+            <path d="M8.6 8.6 19 19"></path>
+            <path d="M8.6 15.4 19 5"></path>
+          </svg>
+          <h2>等待解析结果</h2>
+          <p>解析完成后会在这里生成镜头时间轴和关键帧。</p>
+        </div>
+
+        <div id="result-view" class="hidden">
+          <section class="result-summary">
+            <div>
+              <div id="result-title" class="result-title"></div>
+              <div id="result-subtitle" class="result-subtitle"></div>
+            </div>
+            <div class="stats">
+              <div class="stat"><span>时长</span><strong id="stat-duration">-</strong></div>
+              <div class="stat"><span>画幅</span><strong id="stat-size">-</strong></div>
+              <div class="stat"><span>帧率</span><strong id="stat-fps">-</strong></div>
+              <div class="stat"><span>镜头</span><strong id="stat-shots">-</strong></div>
+            </div>
+          </section>
+
+          <div class="workspace-split">
+            <section class="section-block">
+              <div class="section-heading">
+                <h2>镜头表</h2>
+                <span id="cut-count">0 个切点</span>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>镜头</th>
+                      <th>起点</th>
+                      <th>终点</th>
+                      <th>时长</th>
+                      <th>关键帧</th>
+                    </tr>
+                  </thead>
+                  <tbody id="shots-body"></tbody>
+                </table>
+              </div>
+            </section>
+            <section class="section-block">
+              <div class="section-heading">
+                <h2>关键帧</h2>
+                <span id="frame-count">0 张</span>
+              </div>
+              <div id="frame-grid" class="frame-grid"></div>
+            </section>
+          </div>
+
+          <section id="step2-view" class="step2-view">
+            <div class="section-heading">
+              <h2>Step 2 · 复刻洗稿</h2>
+              <span id="step2-sub">传你的产品图，把这条片复刻成你的带货视频</span>
+            </div>
+
+            <form id="step2-form" class="step2-form">
+              <label id="ref-zone" class="upload-zone">
+                <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect width="18" height="18" x="3" y="3" rx="2" ry="2"></rect>
+                  <circle cx="9" cy="9" r="2"></circle>
+                  <path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"></path>
+                </svg>
+                <span id="ref-name">选择产品参考图（1-3 张）</span>
+                <input id="ref-input" accept="image/*" type="file" multiple />
+              </label>
+              <div id="ref-preview" class="ref-preview"></div>
+
+              <div class="param-grid">
+                <label class="field">
+                  <span>产品（文字，可选）</span>
+                  <input id="product-input" type="text" placeholder="例：磨砂黑色金属签字笔" />
+                </label>
+                <label class="field">
+                  <span>复刻镜数（留空=全部）</span>
+                  <input id="limit-input" type="number" min="1" placeholder="全部" />
+                </label>
+              </div>
+
+              <label class="field">
+                <span>洗稿要求</span>
+                <textarea id="requirement-input" rows="3" placeholder="例：把场景洗成卖这支笔的带货短视频，亲切专业，台词原创不照搬"></textarea>
+              </label>
+
+              <button id="step2-submit" class="primary-action" disabled type="submit">
+                <svg id="step2-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M12 2v4"></path><path d="m16.2 7.8 2.9-2.9"></path><path d="M18 12h4"></path>
+                  <path d="m16.2 16.2 2.9 2.9"></path><path d="M12 18v4"></path><path d="m4.9 19.1 2.9-2.9"></path>
+                  <path d="M2 12h4"></path><path d="m4.9 4.9 2.9 2.9"></path>
+                </svg>
+                <span id="step2-label">开始复刻（每镜约 60 秒）</span>
+              </button>
+            </form>
+
+            <div id="step2-status" class="status-line idle hidden">
+              <span class="status-dot"></span>
+              <span id="step2-status-text">等待</span>
+            </div>
+            <div id="step2-error" class="error-box hidden"></div>
+            <div id="step2-grid" class="frame-grid"></div>
+          </section>
+        </div>
+      </section>
+    </main>
+
+    <script type="module" src="app.js"></script>
+  </body>
+</html>

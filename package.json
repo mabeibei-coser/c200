@@ -1,0 +1,30 @@
+{
+  "name": "video-remake",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "C200 爆款视频复刻 - 参考视频换产品复刻：解析视频 → 生成产品参考图 → 分镜脚本（保一致）",
+  "scripts": {
+    "dev": "node server.js",
+    "start": "node server.js",
+    "smoke:image": "node scripts/smoke-image.js",
+    "smoke:parse": "node scripts/smoke-parse.js",
+    "smoke:import": "node scripts/smoke-import-parse.js",
+    "smoke:vlm": "node scripts/smoke-vlm.js",
+    "smoke:asr": "node scripts/smoke-asr.js",
+    "smoke:douyin": "node scripts/smoke-douyin.js",
+    "smoke:rewrite": "node scripts/smoke-rewrite.js",
+    "smoke:step2": "node scripts/smoke-step2.js",
+    "parse:input": "node scripts/parse-input.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "express": "^5.2.1",
+    "lucide-react": "^1.21.0",
+    "multer": "^2.2.0",
+    "openai": "^6.39.0",
+    "playwright-core": "^1.61.1",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7"
+  }
+}
