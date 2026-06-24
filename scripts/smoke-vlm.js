@@ -1,7 +1,7 @@
-// 冒烟测试：验证豆包 vision 能对一张真实关键帧输出结构化镜头描述。
+// 冒烟测试：验证讯飞 vision（Qwen-VL）能对一张真实关键帧输出结构化镜头描述。
 // 跑法：npm run smoke:vlm
 //      指定帧：npm run smoke:vlm -- data/frames/<目录>/shot-01.jpg
-//      换模型：VLM_MODEL=doubao-seed-1-6-flash-250615 npm run smoke:vlm
+//      换模型：VLM_MODEL=<模型名> npm run smoke:vlm
 
 import dotenv from "dotenv";
 import fs from "node:fs";
@@ -39,7 +39,7 @@ if (!process.env.IMAGE_API_KEY && !process.env.VLM_API_KEY) {
 }
 
 console.log("[smoke-vlm] 关键帧:", frame, `(${fs.statSync(frame).size} 字节)`);
-console.log("[smoke-vlm] 模型:", process.env.VLM_MODEL || "doubao-seed-1-6-250615", "调用中...");
+console.log("[smoke-vlm] 模型:", process.env.VLM_MODEL || "xopqwen36v35b", "调用中...");
 
 const r = await describeShot(frame);
 console.log(`[smoke-vlm] 耗时 ${r.durationMs}ms  ok=${r.ok}`);

@@ -8,13 +8,13 @@
 
 ```bash
 npm install
-cp .env.local.example .env.local    # 填生图 key（可直接复用 A700 的 BANANA_* / IMAGE_* 值）
+cp .env.local.example .env.local    # 填 key：生图 BANANA_*、画面描述/文字 VLM_*（讯飞）、视频 VIDEO_*（选填）
 npm run dev                         # 打开 http://127.0.0.1:3001/
 npm run smoke:image                 # 冒烟：验证 gpt-image-2 能否图生图（换主体保构图）
 npm run smoke:import                # 冒烟：验证“导入本地视频 → 精解析切镜头/抽帧”
-npm run smoke:vlm                   # 冒烟：验证豆包 vision 逐镜画面描述（火山 ARK key）
+npm run smoke:vlm                   # 冒烟：验证讯飞 vision（Qwen-VL）逐镜画面描述
 npm run smoke:asr                   # 冒烟：验证本地 whisper 听写台词
-npm run smoke:douyin -- "<抖音链接>"  # 冒烟：验证抖音链接 → 真 Chrome 拦截 CDN 直链 → 下载
+npm run smoke:douyin -- "<抖音链接>"  # 冒烟：验证抖音链接 → 浏览器拦截 video_mp4 CDN 直链 → 下载
 ```
 
 ### 台词听写依赖（Python，本地离线）
@@ -34,7 +34,7 @@ python -m pip install -i https://pypi.tuna.tsinghua.edu.cn/simple faster-whisper
 ```bash
 npm run parse:input -- "https://example.com/video"
 npm run parse:input -- "data/videos/demo.mp4"
-# 一条龙：切镜头 + 抽关键帧 + 逐镜画面描述(豆包vision) + 台词听写(本地whisper)
+# 一条龙：切镜头 + 抽关键帧 + 逐镜画面描述(讯飞 Qwen-VL) + 台词听写(本地whisper)
 npm run parse:input -- "data/videos/demo.mp4" --describe --transcribe
 ```
 
@@ -47,8 +47,8 @@ npm run parse:input -- "data/videos/demo.mp4" --describe --transcribe
 - 抖音链接默认走「真 Chrome 拦截」自动下载，免登录/免 cookies；其它平台（如小红书）提示登录态时，可在链接模式额外上传 `cookies.txt`
 
 说明：
-- URL 导入：抖音链接走「真 Chrome 拦截 CDN 直链」（`playwright-core` 复用本机已装 Chrome，免登录/免 cookies）；其它平台走 `yt-dlp`。下载的视频都落到 `data/videos/imports/`。
-- 抖音需本机装有 Chrome（默认 `C:\Program Files\Google\Chrome`，可用环境变量 `CHROME_PATH` 覆盖）。注意必须用「有头」浏览器（headless 会被抖音掐断连接），程序已把窗口移到屏幕外、不打扰你；私密/需登录的视频仍可能截不到，改用本地上传。
+- URL 导入：抖音链接走「浏览器拦截 CDN 直链」（`playwright-core` 驱动 Chrome/Chromium，免登录/免 cookies）；其它平台走 `yt-dlp`。下载的视频都落到 `data/videos/imports/`。
+- 抖音优先用 headless 浏览器拦截 `douyinvod.com` + `video_mp4`，失败时自动切到本机 Chrome 有头兜底；本机 Chrome 默认路径为 `C:\Program Files\Google\Chrome`，可用环境变量 `CHROME_PATH` 覆盖。私密/需登录的视频仍可能截不到，改用本地上传。
 - 小红书等其它平台如被登录态/风控拦住，改用本地视频文件路径。
 - 可调切镜头参数：`npm run parse:input -- "data/videos/demo.mp4" --threshold=0.25 --minShotDur=0.6`。
 - `cookies.txt` 只做本次请求临时文件，服务端用完会删除；不要把 cookies 内容粘贴到聊天或代码里。
@@ -59,4 +59,4 @@ Phase 2/4 V1 进行中。完整方案与进度见 plan：`D:\_workspace\.plannin
 
 ## 技术栈（规划）
 
-Node + Express 后端 ｜ 静态网页工作台 ｜ 生图 gpt-image-2（BananaRouter，A700 同款，备选火山 Seedream）｜ 视频下载 yt-dlp + 抖音浏览器拦截（playwright-core 复用本机 Chrome）｜ 解析 ffmpeg ｜ 后续接豆包 vision + ASR ｜ 分镜脚本 LLM 结构化输出。
+Node + Express 后端 ｜ 静态网页工作台 ｜ 生图 gpt-image-2（BananaRouter）｜ 画面描述 讯飞 Qwen-VL ｜ 台词 本地 whisper ｜ 视频下载 yt-dlp + 抖音浏览器拦截（headless 优先，本机 Chrome 兜底）｜ 解析 ffmpeg ｜ 视频生成 火山 Seedance（Step3）｜ 分镜脚本结构化输出。
